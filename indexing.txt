@@ -1,0 +1,24 @@
+//performents
+db.<col name>.explain("executionStats").find({<query>})
+//create index
+db.<col name>.createIndex({"field dname":<1;-1>})
+//combind index
+db.<col name>.createIndex({"field dname":<1;-1>,...})
+//unique index
+db.<col name>.createIndex({"field dname":<1;-1>,...}, {unique: true})
+//filter index
+db.<col name>.createIndex({"field dname":<1;-1>,...}, {partialFilterExpression:{<query>}})
+//filter unique index
+db.<col name>.createIndex({"field dname":<1;-1>,...}, {unique: true, partialFilterExpression:{<query>}})
+//temp index
+db.<col name>.createIndex({"field dname":<1;-1>,...}, {expireAfterSeconds: <secounds>})//only secounds
+//drop index
+db.<col name>.dropIndex({"field dname":<1;-1>})
+//see all indexes
+db.<col name>.getIndexes()
+
+//example
+db.books.createIndex({"pageCount":1})
+db.books.explain("executionStats").find({pageCount:{$gt:300}})
+//its ok if email empty, works only on single index
+db.users.createIndex({email:1}, {unique: true, partialFilterExpression:{$email:{$exists:true}}})

@@ -1,0 +1,214 @@
+//count books by pagecount that was published
+db.books
+  .aggregate([
+    { $match: { status: "PUBLISH" } },
+    {
+      $group: { _id: { page: "$pageCount" }, totalPersons: { $sum: 1 } },
+    },
+    {
+      $sort: { totalPersons: -1 },
+    },
+  ])
+  .pretty();
+
+//transform the document to this format
+db.persons
+  .aggregate([
+    {
+      $project: {
+        _id: 0,
+        gender: 1,
+        fullName: {
+          $concat: [
+            { $toUpper: { $substrCP: ["$name.first", 0, 1] } },
+            {
+              $substrCP: [
+                "$name.first",
+                1,
+                { $subtract: [{ $strLenCP: "$name.first" }, 1] },
+              ],
+            },
+            " ",
+            { $toUpper: { $substrCP: ["$name.last", 0, 1] } },
+            {
+              $substrCP: [
+                "$name.last",
+                1,
+                { $subtract: [{ $strLenCP: "$name.last" }, 1] },
+              ],
+            },
+          ],
+        },
+      },
+    },
+  ])
+  .pretty();
+
+//transform the document to this format adding dob
+db.persons
+  .aggregate([
+    {
+      $project: {
+        _id: 0,
+        name: 1,
+        email: 1,
+        birthdate: { $convert: { input: "$dob.date", to: "date" } },
+        age: "$dob.age",
+        location: {
+          type: "Point",
+          coordinates: [
+            {
+              $convert: {
+                input: "$location.coordinates.longitude",
+                to: "double",
+                onError: 0.0,
+                onNull: 0.0,
+              },
+            },
+            {
+              $convert: {
+                input: "$location.coordinates.latitude",
+                to: "double",
+                onError: 0.0,
+                onNull: 0.0,
+              },
+            },
+          ],
+        },
+      },
+    },
+    {
+      $project: {
+        gender: 1,
+        email: 1,
+        location: 1,
+        birthdate: 1,
+        age: 1,
+        fullName: {
+          $concat: [
+            { $toUpper: { $substrCP: ["$name.first", 0, 1] } },
+            {
+              $substrCP: [
+                "$name.first",
+                1,
+                { $subtract: [{ $strLenCP: "$name.first" }, 1] },
+              ],
+            },
+            " ",
+            { $toUpper: { $substrCP: ["$name.last", 0, 1] } },
+            {
+              $substrCP: [
+                "$name.last",
+                1,
+                { $subtract: [{ $strLenCP: "$name.last" }, 1] },
+              ],
+            },
+          ],
+        },
+      },
+    },
+  ])
+  .pretty();
+
+//pushing to array
+db.books
+  .aggregate([
+    {
+      $group: { _id: { page: "$pageCount" }, arr: { $push: "$status" } },
+    },
+  ])
+  .pretty();
+db.books
+  .aggregate([
+    { $unwind: "$authors" },
+    {
+      $group: { _id: { page: "$pageCount" }, arr: { $push: "$authors" } },
+    },
+  ])
+  .pretty();
+db.books
+  .aggregate([
+    { $unwind: "$authors" },
+    {
+      $group: { _id: { page: "$pageCount" }, arr: { $addToSet: "$authors" } },
+    },
+  ])
+  .pretty();
+
+//slice $slice:["$arr name", <start pos>, <how match>]
+db.books
+  .aggregate([
+    { $project: { _id: 0, somname: { $slice: ["$authors", 2, 1] } } },
+  ])
+  .pretty();
+
+//getting array length
+db.books
+  .aggregate([{ $project: { _id: 0, somname: { $size: "$authors" } } }])
+  .pretty();
+
+//bucket
+db.persons
+  .aggregate([
+    {
+      $bucket: {
+        groupBy: "$dob.age",
+        boundaries: [18, 30, 40, 50, 60, 120],
+        output: {
+          numPersons: { $sum: 1 },
+          averageAge: { $avg: "$dob.age" },
+        },
+      },
+    },
+  ])
+  .pretty();
+//autobucket
+db.persons
+  .aggregate([
+    {
+      $bucketAuto: {
+        groupBy: "$dob.age",
+        buckets: 5,
+        output: {
+          numPersons: { $sum: 1 },
+          averageAge: { $avg: "$dob.age" },
+        },
+      },
+    },
+  ])
+  .pretty();
+//example find the 10 oldest persons from db
+db.persons
+  .aggregate([
+    { $match: { gender: "male" } },
+    {
+      $project: {
+        _id: 0,
+        gender: 1,
+        name: { $concat: ["$name.first", " ", "$name.last"] },
+        birthdate: { $toDate: "$dob.date" },
+      },
+    },
+    { $sort: { birthdate: 1 } },
+    { $skip: 10 },
+    { $limit: 10 },
+  ])
+  .pretty();
+//example find the 10 oldest persons from db save the resoults to another collection
+db.persons
+  .aggregate([
+    { $match: { gender: "male" } },
+    {
+      $project: {
+        _id: 0,
+        gender: 1,
+        name: { $concat: ["$name.first", " ", "$name.last"] },
+        birthdate: { $toDate: "$dob.date" },
+      },
+    },
+    { $sort: { birthdate: 1 } },
+    { $skip: 10 },
+    { $limit: 10 },
+    { $out: "colName" },
+  ])
+  .pretty();
